@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta cha<!DOCTYPE html>
+<html lang="en">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Drive the '67 Mustang</title>
@@ -96,6 +99,7 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/GLTFLoader.js"></script>
     <script>
         // Game variables
         let scene, camera, renderer, car, ground;
@@ -254,39 +258,56 @@
         }
         
         function loadCarModel() {
-            // For now, create a placeholder car
-            // In a real implementation, you would load the GLB file here
-            const carGeometry = new THREE.BoxGeometry(8, 3, 16);
-            const carMaterial = new THREE.MeshLambertMaterial({ color: 0xFF4444 });
-            car = new THREE.Mesh(carGeometry, carMaterial);
-            car.position.set(0, 1.5, 0);
-            car.castShadow = true;
-            scene.add(car);
+            // Create GLB loader
+            const loader = new THREE.GLTFLoader();
             
-            // Add wheels
-            const wheelGeometry = new THREE.CylinderGeometry(1.5, 1.5, 1);
-            const wheelMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
-            
-            const wheels = [];
-            const wheelPositions = [
-                [-3, -1, 5],   // front left
-                [3, -1, 5],    // front right
-                [-3, -1, -5],  // rear left
-                [3, -1, -5]    // rear right
-            ];
-            
-            wheelPositions.forEach(pos => {
-                const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
-                wheel.rotation.z = Math.PI / 2;
-                wheel.position.set(pos[0], pos[1], pos[2]);
-                car.add(wheel);
-                wheels.push(wheel);
-            });
-            
-            // Hide loading screen
-            document.getElementById('loading').style.display = 'none';
-            
-            console.log("Car loaded! Ready to drive your '67 Mustang!");
+            // Load the Mustang GLB file
+            loader.load(
+                '67_mustang_high_poly.glb',
+                function(gltf) {
+                    // Successfully loaded
+                    car = gltf.scene;
+                    
+                    // Scale and position the car appropriately
+                    car.scale.set(2, 2, 2);  // Adjust size as needed
+                    car.position.set(0, 0, 0);
+                    car.rotation.y = Math.PI; // Face forward
+                    
+                    // Enable shadows
+                    car.traverse(function(child) {
+                        if (child.isMesh) {
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                        }
+                    });
+                    
+                    scene.add(car);
+                    
+                    // Hide loading screen
+                    document.getElementById('loading').style.display = 'none';
+                    
+                    console.log("'67 Mustang loaded successfully! Ready to drive!");
+                },
+                function(progress) {
+                    // Loading progress
+                    console.log('Loading progress:', (progress.loaded / progress.total * 100) + '%');
+                },
+                function(error) {
+                    console.error('Error loading Mustang model:', error);
+                    
+                    // Fallback to placeholder car if GLB fails to load
+                    console.log('Loading placeholder car instead...');
+                    const carGeometry = new THREE.BoxGeometry(8, 3, 16);
+                    const carMaterial = new THREE.MeshLambertMaterial({ color: 0xFF4444 });
+                    car = new THREE.Mesh(carGeometry, carMaterial);
+                    car.position.set(0, 1.5, 0);
+                    car.castShadow = true;
+                    scene.add(car);
+                    
+                    document.getElementById('loading').style.display = 'none';
+                    alert('Could not load Mustang model. Make sure 67_mustang_high_poly.glb is in the same folder as index.html');
+                }
+            );
         }
         
         function setupControls() {
