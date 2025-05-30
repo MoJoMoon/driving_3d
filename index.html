@@ -96,7 +96,7 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script>
         // Game variables
         let scene, camera, renderer, car, ground;
@@ -256,64 +256,118 @@
         
         function loadCarModel() {
             console.log('Starting to load car model...');
-            console.log('THREE.GLTFLoader available:', typeof THREE.GLTFLoader);
             
+            // For now, let's start with placeholder and try GLB loading in background
+            createPlaceholderCar();
+            
+            // Try to load GLB in background
+            tryLoadGLB();
+        }
+        
+        function tryLoadGLB() {
             // Check if GLTFLoader is available
             if (typeof THREE.GLTFLoader === 'undefined') {
-                console.error('GLTFLoader not available, using placeholder car');
-                createPlaceholderCar();
+                console.error('GLTFLoader not available');
                 return;
             }
             
+            console.log('Trying to load local GLB file...');
+            
             // Create GLB loader
             const loader = new THREE.GLTFLoader();
-            console.log('GLTFLoader created successfully');
             
-            // Load the Mustang GLB file
-            console.log('Attempting to load: 67_mustang_high_poly.glb');
-            loader.load(
+            // Try multiple file path variations
+            const filePaths = [
                 '67_mustang_high_poly.glb',
+                './67_mustang_high_poly.glb',
+                '/67_mustang_high_poly.glb'
+            ];
+            
+            tryLoadFromPaths(loader, filePaths, 0);
+        }
+        
+        function tryLoadFromPaths(loader, paths, index) {
+            if (index >= paths.length) {
+                console.log('All file paths failed. Your GLB file might not be accessible.');
+                console.log('Make sure 67_mustang_high_poly.glb is in the same folder as index.html');
+                console.log('You can still drive the placeholder car with WASD keys!');
+                return;
+            }
+            
+            const currentPath = paths[index];
+            console.log(`Trying path ${index + 1}/${paths.length}: ${currentPath}`);
+            
+            loader.load(
+                currentPath,
                 function(gltf) {
                     // Successfully loaded
-                    console.log('GLB file loaded successfully!', gltf);
-                    car = gltf.scene;
-                    
-                    // Scale and position the car appropriately
-                    car.scale.set(2, 2, 2);  // Adjust size as needed
-                    car.position.set(0, 0, 0);
-                    car.rotation.y = Math.PI; // Face forward
-                    
-                    // Enable shadows
-                    car.traverse(function(child) {
-                        if (child.isMesh) {
-                            child.castShadow = true;
-                            child.receiveShadow = true;
-                        }
-                    });
-                    
-                    scene.add(car);
-                    
-                    // Hide loading screen
-                    document.getElementById('loading').style.display = 'none';
-                    
-                    console.log("'67 Mustang loaded successfully! Ready to drive!");
+                    console.log(`SUCCESS! GLB loaded from: ${currentPath}`);
+                    replacePlaceholderWithMustang(gltf);
                 },
                 function(progress) {
-                    // Loading progress
-                    const percentage = (progress.loaded / progress.total * 100);
-                    console.log('Loading progress:', percentage + '%');
-                    document.getElementById('loading').innerHTML = `
-                        <div class="loading-spinner"></div>
-                        <div>Loading your '67 Mustang... ${percentage.toFixed(0)}%</div>
-                    `;
+                    if (progress.total > 0) {
+                        const percentage = (progress.loaded / progress.total * 100);
+                        console.log(`Loading ${currentPath}: ${percentage.toFixed(1)}%`);
+                    }
                 },
                 function(error) {
-                    console.error('Error loading Mustang model:', error);
-                    console.log('Loading placeholder car instead...');
-                    createPlaceholderCar();
-                    alert('Could not load Mustang model. Check console for details.');
+                    console.log(`Failed to load from ${currentPath}:`, error.message);
+                    // Try next path
+                    tryLoadFromPaths(loader, paths, index + 1);
                 }
             );
+        }
+        
+        function replacePlaceholderWithMustang(gltf) {
+            console.log('Replacing placeholder with Mustang...');
+            
+            // Remove old car
+            if (car) {
+                scene.remove(car);
+            }
+            
+            car = gltf.scene;
+            
+            // Log some info about the loaded model
+            console.log('Mustang model info:', {
+                children: car.children.length,
+                position: car.position,
+                scale: car.scale,
+                rotation: car.rotation
+            });
+            
+            // Scale and position the car appropriately
+            car.scale.set(2, 2, 2); // Make it bigger so it's visible
+            car.position.set(0, 1, 0); // Lift it slightly off ground
+            car.rotation.y = 0;
+            
+            // Enable shadows and make sure materials are visible
+            car.traverse(function(child) {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    
+                    // Log mesh info
+                    console.log('Mesh found:', child.name, 'Material:', child.material ? child.material.type : 'No material');
+                    
+                    // Make sure materials are visible
+                    if (child.material) {
+                        child.material.needsUpdate = true;
+                        // Ensure it's not transparent
+                        if (child.material.opacity !== undefined) {
+                            child.material.opacity = 1;
+                        }
+                    }
+                }
+            });
+            
+            scene.add(car);
+            console.log("'67 Mustang added to scene! You should see it now.");
+            
+            // Move camera to get a better view
+            setTimeout(() => {
+                console.log('Camera repositioned for better view');
+            }, 1000);
         }
         
         function createPlaceholderCar() {
